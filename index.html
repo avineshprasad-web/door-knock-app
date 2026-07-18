@@ -199,7 +199,14 @@ function loadState(){
   }catch(e){}
   return { properties: [], batches: [], activeBatchId: null };
 }
-function saveState(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+function saveState(){
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  }catch(e){
+    alert('Couldn\u2019t save your data. This usually means Safari is blocking storage \u2014 check Settings > Privacy > \u201cBlock all cookies\u201d is off, and that you\u2019re not in Private Browsing. Your changes will be lost if you reload before fixing this.');
+    console.error('saveState failed', e);
+  }
+}
 
 let state = loadState();
 let view = 'list';       // list | summary
@@ -712,25 +719,30 @@ function renderImportModal(){
     });
     modal.appendChild(el('label',{class:'field'},[el('span',{},['Address column']), addrSel]));
     modal.appendChild(el('button',{class:'btn primary',onclick:()=>{
-      const ai = addrSel.value;
-      if(ai===''){ toast('Pick the address column'); return; }
-      const batch = createBatch(labelInput.value.trim() || 'Untitled street');
-      let added=0;
-      importRows.forEach(r=>{
-        const address = (r[ai]||'').trim();
-        if(!address) return;
-        const ref = {};
-        importHeaders.forEach((h,i)=>{
-          if(String(i)===String(ai)) return;
-          const v = (r[i]||'').trim();
-          if(v) ref[h] = fmtVal(v);
+      try{
+        const ai = addrSel.value;
+        if(ai===''){ toast('Pick the address column'); return; }
+        const batch = createBatch(labelInput.value.trim() || 'Untitled street');
+        let added=0;
+        importRows.forEach(r=>{
+          const address = (r[ai]||'').trim();
+          if(!address) return;
+          const ref = {};
+          importHeaders.forEach((h,i)=>{
+            if(String(i)===String(ai)) return;
+            const v = (r[i]||'').trim();
+            if(v) ref[h] = fmtVal(v);
+          });
+          state.properties.push(newProperty(address, ref, batch.id));
+          added++;
         });
-        state.properties.push(newProperty(address, ref, batch.id));
-        added++;
-      });
-      saveState();
-      toast(added+' addresses added to '+batch.label);
-      importStep=null; importRows=null; view='list'; render();
+        saveState();
+        toast(added+' addresses added to '+batch.label);
+        importStep=null; importRows=null; view='list'; render();
+      }catch(err){
+        alert('Import failed: '+err.message);
+        console.error(err);
+      }
     }},['Import '+importRows.length+' properties']));
     modal.appendChild(el('button',{class:'btn ghost',style:'margin-top:8px',onclick:()=>{importStep=null;importRows=null;render();}},['Cancel']));
   }

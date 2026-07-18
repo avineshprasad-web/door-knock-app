@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Doors">
+<title>Door Knock — Ask Avinesh</title>
+<style>
+  :root{
+    --bg:#F7F6F3;
+    --panel:#FFFFFF;
+    --ink:#1C2321;
+    --ink-soft:#5B6560;
+    --border:#DEDAD1;
+    --accent:#1F4B43;
+    --accent-soft:#E4ECE9;
+    --warn:#C97A2B;
+    --warn-soft:#FBECDB;
+    --good:#2F7D5C;
+    --good-soft:#E4F0E9;
+    --bad:#A8433A;
+    --bad-soft:#F6E7E5;
+    --radius:14px;
+    font-size:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+  .serif{font-family:ui-serif,Georgia,"Times New Roman",serif;}
+  #app{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;
+    padding-bottom:env(safe-area-inset-bottom);}
+
+  header.top{position:sticky;top:0;z-index:10;background:var(--bg);
+    padding:calc(env(safe-area-inset-top) + 14px) 18px 10px;border-bottom:1px solid var(--border);}
+  header.top h1{font-size:1.35rem;margin:0 0 2px;font-weight:700;}
+  header.top .sub{color:var(--ink-soft);font-size:.85rem;}
+  .progress-rail{display:flex;gap:3px;margin-top:10px;height:8px;}
+  .progress-rail span{flex:1;border-radius:2px;background:var(--border);}
+  .progress-rail span.visited{background:var(--accent);}
+  .progress-rail span.hot{background:var(--good);}
+
+  .search{margin:12px 18px 0;}
+  .search input{width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--border);
+    background:var(--panel);font-size:1rem;color:var(--ink);}
+  .search input:focus{outline:2px solid var(--accent);outline-offset:1px;}
+
+  main{flex:1;overflow-y:auto;padding:14px 18px 90px;}
+
+  .empty{text-align:center;color:var(--ink-soft);padding:60px 24px;}
+  .empty .big{font-size:2.2rem;margin-bottom:10px;}
+  .empty button{margin-top:16px;}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer;}
+  .card:active{transform:scale(0.985);}
+  .dot{width:12px;height:12px;border-radius:50%;background:var(--border);flex:none;}
+  .dot.no-answer{background:var(--warn);}
+  .dot.spoke{background:var(--good);}
+  .dot.skip{background:var(--bad);}
+  .card .info{flex:1;min-width:0;}
+  .card .addr{font-weight:600;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card .meta{color:var(--ink-soft);font-size:.82rem;margin-top:2px;}
+  .badge{display:inline-block;font-size:.7rem;font-weight:600;padding:2px 8px;border-radius:99px;
+    margin-right:6px;}
+  .badge.owner{background:var(--accent-soft);color:var(--accent);}
+  .badge.tenant{background:var(--warn-soft);color:var(--warn);}
+  .chev{color:var(--ink-soft);font-size:1.2rem;flex:none;}
+
+  nav.tabs{position:fixed;bottom:0;left:0;right:0;background:var(--panel);
+    border-top:1px solid var(--border);display:flex;max-width:560px;margin:0 auto;
+    padding-bottom:env(safe-area-inset-bottom);}
+  nav.tabs button{flex:1;border:none;background:none;padding:12px 0 10px;font-size:.78rem;
+    color:var(--ink-soft);font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  nav.tabs button .ic{font-size:1.25rem;}
+  nav.tabs button.active{color:var(--accent);}
+
+  .fab{position:fixed;right:18px;bottom:78px;background:var(--accent);color:#fff;border:none;
+    width:54px;height:54px;border-radius:50%;font-size:1.6rem;box-shadow:0 4px 14px rgba(0,0,0,.2);
+    max-width:560px;}
+
+  /* Detail / capture screen */
+  .screen{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;flex-direction:column;
+    max-width:560px;margin:0 auto;}
+  .screen header{padding:calc(env(safe-area-inset-top) + 14px) 18px 12px;border-bottom:1px solid var(--border);
+    background:var(--panel);}
+  .backbtn{background:none;border:none;color:var(--accent);font-size:1rem;font-weight:600;padding:0;margin-bottom:8px;}
+  .screen h2{margin:0;font-size:1.3rem;font-weight:700;}
+  .screen .ref{color:var(--ink-soft);font-size:.85rem;margin-top:4px;}
+  .screen main{padding:16px 18px 130px;overflow-y:auto;}
+
+  .section-label{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--ink-soft);margin:18px 0 8px;}
+  .section-label:first-child{margin-top:0;}
+
+  .toggle-row{display:flex;gap:8px;}
+  .toggle-row button{flex:1;padding:14px 6px;border-radius:12px;border:1.5px solid var(--border);
+    background:var(--panel);font-weight:600;font-size:.92rem;color:var(--ink);}
+  .toggle-row button.on.owner{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .toggle-row button.on.tenant{background:var(--warn);border-color:var(--warn);color:#fff;}
+  .toggle-row button.on.unsure{background:var(--ink-soft);border-color:var(--ink-soft);color:#fff;}
+
+  .chip-row{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{padding:10px 14px;border-radius:99px;border:1.5px solid var(--border);background:var(--panel);
+    font-size:.88rem;font-weight:600;color:var(--ink);}
+  .chip.on{background:var(--ink);border-color:var(--ink);color:#fff;}
+  .chip.on.good{background:var(--good);border-color:var(--good);}
+  .chip.on.warn{background:var(--warn);border-color:var(--warn);}
+  .chip.on.bad{background:var(--bad);border-color:var(--bad);}
+
+  label.field{display:block;margin-bottom:12px;}
+  label.field span{display:block;font-size:.82rem;color:var(--ink-soft);margin-bottom:5px;font-weight:600;}
+  label.field input, label.field textarea{width:100%;padding:12px 13px;border-radius:11px;
+    border:1.5px solid var(--border);background:var(--panel);font-size:1rem;color:var(--ink);
+    font-family:inherit;}
+  label.field textarea{min-height:80px;resize:vertical;}
+  label.field input:focus, label.field textarea:focus{outline:2px solid var(--accent);outline-offset:1px;}
+
+  .screen footer{position:fixed;bottom:0;left:0;right:0;max-width:560px;margin:0 auto;
+    background:var(--panel);border-top:1px solid var(--border);padding:12px 18px calc(env(safe-area-inset-bottom) + 12px);
+    display:flex;gap:10px;}
+  .btn{display:block;text-align:center;padding:14px;border-radius:12px;border:none;font-weight:700;
+    font-size:1rem;cursor:pointer;}
+  .btn.primary{background:var(--accent);color:#fff;flex:1;}
+  .btn.ghost{background:var(--panel);color:var(--bad);border:1.5px solid var(--border);}
+
+  .refcard{background:var(--accent-soft);border-radius:12px;padding:12px 14px;margin-bottom:4px;
+    display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;}
+  .refcard .item{font-size:.82rem;}
+  .refcard .item b{display:block;color:var(--accent);font-size:.7rem;text-transform:uppercase;
+    letter-spacing:.03em;font-weight:700;margin-bottom:1px;}
+  .avm-badge{display:inline-block;background:var(--accent-soft);color:var(--accent);
+    font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:99px;margin-left:6px;}
+
+  /* Summary/export view */
+  .stat-row{display:flex;gap:10px;margin-bottom:16px;}
+  .stat{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:12px;text-align:center;}
+  .stat .num{font-size:1.5rem;font-weight:700;font-family:ui-serif,Georgia,serif;}
+  .stat .lbl{font-size:.72rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;}
+
+  .entry{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:14px 16px;margin-bottom:10px;}
+  .entry .addr{font-weight:700;margin-bottom:6px;}
+  .entry .row{font-size:.88rem;color:var(--ink-soft);margin-bottom:2px;}
+  .entry .row b{color:var(--ink);font-weight:600;}
+  .entry .actions{display:flex;gap:8px;margin-top:10px;}
+  .entry .actions button{flex:1;padding:9px;border-radius:9px;border:1.5px solid var(--border);
+    background:var(--bg);font-size:.82rem;font-weight:600;color:var(--ink);}
+
+  .toolbar{display:flex;gap:10px;margin-bottom:16px;}
+  .toolbar button{flex:1;padding:12px;border-radius:11px;border:1.5px solid var(--border);
+    background:var(--panel);font-weight:700;font-size:.85rem;color:var(--accent);}
+
+  .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--ink);
+    color:#fff;padding:10px 18px;border-radius:99px;font-size:.85rem;font-weight:600;
+    opacity:0;transition:opacity .25s;pointer-events:none;z-index:50;}
+  .toast.show{opacity:1;}
+
+  /* Import modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(28,35,33,.5);z-index:30;
+    display:flex;align-items:flex-end;}
+  .modal{background:var(--panel);width:100%;max-width:560px;margin:0 auto;border-radius:20px 20px 0 0;
+    padding:20px 20px calc(env(safe-area-inset-bottom) + 20px);max-height:85vh;overflow-y:auto;}
+  .modal h3{margin:0 0 4px;font-size:1.15rem;}
+  .modal p{color:var(--ink-soft);font-size:.88rem;margin:0 0 16px;}
+  .filepick{border:2px dashed var(--border);border-radius:12px;padding:24px;text-align:center;
+    color:var(--ink-soft);margin-bottom:14px;}
+  select{width:100%;padding:11px;border-radius:10px;border:1.5px solid var(--border);
+    background:var(--panel);font-size:.95rem;margin-bottom:12px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- storage ---------- */
+const STORE_KEY = 'doorknock_v1';
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){
+      const data = JSON.parse(raw);
+      if(!data.batches) data.batches = [];
+      if(data.properties===undefined) data.properties = [];
+      // migrate legacy data (properties with no batchId) into a single default batch
+      const orphans = data.properties.filter(p=>!p.batchId);
+      if(orphans.length){
+        const bid = 'b'+Math.random().toString(36).slice(2,10);
+        data.batches.push({id:bid, label: data.runLabel || 'Imported', createdAt: new Date().toISOString()});
+        orphans.forEach(p=>p.batchId=bid);
+        if(!data.activeBatchId) data.activeBatchId = bid;
+      }
+      if(data.activeBatchId===undefined) data.activeBatchId = data.batches.length ? data.batches[0].id : null;
+      return data;
+    }
+  }catch(e){}
+  return { properties: [], batches: [], activeBatchId: null };
+}
+function saveState(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+let state = loadState();
+let view = 'list';       // list | summary
+let openId = null;       // property id currently in capture screen
+let searchTerm = '';
+let importStep = null;   // null | 'pick' | 'map'
+let importRows = null;
+let importHeaders = null;
+let streetPicker = false;
+
+/* ---------- helpers ---------- */
+function uid(){ return 'p' + Math.random().toString(36).slice(2,10); }
+function newProperty(address, ref, batchId){
+  return {
+    id:uid(), address, ref: ref||{}, batchId: batchId || state.activeBatchId,
+    occupancy:'', outcome:'', interest:'', timeframe:'', requested:[], nextAction:'',
+    contactName:'', contactPhone:'', contactEmail:'', notes:'', followUp:''
+  };
+}
+function createBatch(label){
+  const b = {id:'b'+Math.random().toString(36).slice(2,10), label: label||'Untitled street', createdAt: new Date().toISOString()};
+  state.batches.push(b);
+  state.activeBatchId = b.id;
+  saveState();
+  return b;
+}
+function currentBatch(){ return state.batches.find(b=>b.id===state.activeBatchId); }
+function visibleProperties(){ return state.properties.filter(p=>p.batchId===state.activeBatchId); }
+function fmtVal(v){
+  v = (v||'').trim();
+  if(/^\d+$/.test(v)) return Number(v).toLocaleString();
+  return v;
+}
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('show'), 1600);
+}
+function statusOf(p){
+  if(p.outcome === 'spoke-owner' || p.outcome === 'spoke-tenant' || p.outcome === 'interested' || p.outcome === 'callback') return 'spoke';
+  if(p.outcome === 'no-answer') return 'no-answer';
+  if(p.outcome === 'not-interested') return 'skip';
+  return '';
+}
+function visitedCount(){ return visibleProperties().filter(p=>p.outcome).length; }
+function hotCount(){ return visibleProperties().filter(p=>p.outcome==='interested'||p.outcome==='callback').length; }
+
+/* simple CSV parser (handles quoted fields) */
+function parseCSV(text){
+  const rows=[]; let row=[]; let field=''; let inQuotes=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQuotes){
+      if(c==='"'){ if(text[i+1]==='"'){field+='"';i++;} else inQuotes=false; }
+      else field+=c;
+    } else {
+      if(c==='"') inQuotes=true;
+      else if(c===','){ row.push(field); field=''; }
+      else if(c==='\n'||c==='\r'){
+        if(field!==''||row.length){ row.push(field); rows.push(row); row=[]; field=''; }
+        if(c==='\r'&&text[i+1]==='\n') i++;
+      } else field+=c;
+    }
+  }
+  if(field!==''||row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r=>r.some(c=>c.trim()!==''));
+}
+
+/* ---------- render ---------- */
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  app.appendChild(view==='list' ? renderList() : renderSummary());
+  if(openId) app.appendChild(renderDetail(state.properties.find(p=>p.id===openId)));
+  if(importStep) app.appendChild(renderImportModal());
+  if(streetPicker) app.appendChild(renderStreetPicker());
+}
+
+function el(tag, attrs, children){
+  const e = document.createElement(tag);
+  if(attrs) Object.entries(attrs).forEach(([k,v])=>{
+    if(k==='class') e.className=v;
+    else if(k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k,v);
+  });
+  (children||[]).forEach(c=>{ if(typeof c==='string') e.appendChild(document.createTextNode(c)); else if(c) e.appendChild(c); });
+  return e;
+}
+
+function renderList(){
+  const wrap = el('div');
+  const props = visibleProperties();
+  const header = el('header',{class:'top'});
+  const titleRow = el('div',{style:'display:flex;align-items:center;justify-content:space-between;gap:8px;'});
+  titleRow.appendChild(el('h1',{class:'serif',style:'margin:0;'},[(currentBatch()&&currentBatch().label) || 'No street loaded']));
+  titleRow.appendChild(el('button',{style:'background:none;border:1.5px solid var(--border);border-radius:99px;padding:6px 12px;font-size:.78rem;font-weight:700;color:var(--accent);flex:none;',
+    onclick:()=>{streetPicker=true;render();}},['Streets \u25be']));
+  header.appendChild(titleRow);
+  header.appendChild(el('div',{class:'sub'},[`${visitedCount()} / ${props.length} doors \u00b7 ${hotCount()} hot`]));
+  const rail = el('div',{class:'progress-rail'});
+  props.forEach(p=>{
+    const s = statusOf(p);
+    rail.appendChild(el('span',{class: s==='spoke'?'visited hot': s? 'visited':''}));
+  });
+  if(props.length) header.appendChild(rail);
+  wrap.appendChild(header);
+
+  const searchWrap = el('div',{class:'search'});
+  const input = el('input',{placeholder:'Search address\u2026', value: searchTerm,
+    oninput:(e)=>{ searchTerm=e.target.value; render(); }});
+  searchWrap.appendChild(input);
+  wrap.appendChild(searchWrap);
+
+  const main = el('main');
+  const list = props.filter(p=> p.address.toLowerCase().includes(searchTerm.toLowerCase()));
+  if(props.length===0){
+    const empty = el('div',{class:'empty'});
+    empty.appendChild(el('div',{class:'big'},['\ud83d\udeaa']));
+    empty.appendChild(el('div',{},[state.batches.length ? 'This street is empty. Import a list or switch streets.' : 'No properties loaded yet. Import your council list or add one manually.']));
+    const b = el('button',{class:'btn primary',onclick:()=>{importStep='pick';render();}},['Import list']);
+    empty.appendChild(b);
+    main.appendChild(empty);
+  } else if(list.length===0){
+    main.appendChild(el('div',{class:'empty'},['No matches.']));
+  } else {
+    list.forEach(p=>{
+      const card = el('div',{class:'card',onclick:()=>{openId=p.id;render();}});
+      card.appendChild(el('div',{class:'dot '+statusOf(p)}));
+      const info = el('div',{class:'info'});
+      info.appendChild(el('div',{class:'addr'},[p.address]));
+      const metaParts=[];
+      if(p.occupancy==='owner') metaParts.push('Owner-occ');
+      if(p.occupancy==='tenant') metaParts.push('Tenanted');
+      if(p.contactName) metaParts.push(p.contactName);
+      if(!p.contactName && p.ref){
+        const avmKey = Object.keys(p.ref).find(k=>/avm/i.test(k));
+        if(avmKey) metaParts.push('Est. '+p.ref[avmKey]);
+      }
+      info.appendChild(el('div',{class:'meta'},[metaParts.join(' \u00b7 ') || (p.outcome? p.outcome.replace('-',' ') : 'Not visited')]));
+      card.appendChild(info);
+      card.appendChild(el('div',{class:'chev'},['\u203a']));
+      main.appendChild(card);
+    });
+  }
+  wrap.appendChild(main);
+
+  const fab = el('button',{class:'fab',onclick:()=>{importStep='pick';render();}},['+']);
+  wrap.appendChild(fab);
+  wrap.appendChild(renderTabs());
+  return wrap;
+}
+
+function renderTabs(){
+  const nav = el('nav',{class:'tabs'});
+  nav.appendChild(el('button',{class: view==='list'?'active':'', onclick:()=>{view='list';render();}},
+    [el('span',{class:'ic'},['\ud83d\udccb']), 'Doors']));
+  nav.appendChild(el('button',{class: view==='summary'?'active':'', onclick:()=>{view='summary';render();}},
+    [el('span',{class:'ic'},['\u2601\ufe0f']), 'Nurture export']));
+  return nav;
+}
+
+function renderDetail(p){
+  if(!p) return el('div');
+  const screen = el('div',{class:'screen'});
+  const header = el('header');
+  header.appendChild(el('button',{class:'backbtn',onclick:()=>{openId=null;render();}},['\u2039 Back']));
+  header.appendChild(el('h2',{class:'serif'},[p.address]));
+  screen.appendChild(header);
+
+  const main = el('main');
+
+  if(p.ref && Object.keys(p.ref).length){
+    main.appendChild(el('div',{class:'section-label'},['Property reference']));
+    const rc = el('div',{class:'refcard'});
+    Object.entries(p.ref).forEach(([k,v])=>{
+      if(!v) return;
+      rc.appendChild(el('div',{class:'item'},[el('b',{},[k]), v]));
+    });
+    main.appendChild(rc);
+  }
+
+  main.appendChild(el('div',{class:'section-label'},['Occupancy']));
+  const occ = el('div',{class:'toggle-row'});
+  [['owner','Owner Occupied'],['tenant','Tenanted'],['unsure','Unsure']].forEach(([val,label])=>{
+    occ.appendChild(el('button',{class: (p.occupancy===val?'on '+val:''),
+      onclick:()=>{p.occupancy=val;saveState();render();}},[label]));
+  });
+  main.appendChild(occ);
+
+  main.appendChild(el('div',{class:'section-label'},['Outcome']));
+  const chipRow = el('div',{class:'chip-row'});
+  const outcomes = [
+    ['no-answer','No answer','warn'],
+    ['spoke-owner','Spoke to owner','good'],
+    ['spoke-tenant','Spoke to tenant','good'],
+    ['interested','Interested','good'],
+    ['callback','Callback requested','good'],
+    ['not-interested','Not interested','bad'],
+  ];
+  outcomes.forEach(([val,label,tone])=>{
+    chipRow.appendChild(el('div',{class:'chip'+(p.outcome===val?' on '+tone:''),
+      onclick:()=>{p.outcome = p.outcome===val ? '' : val; saveState(); render();}},[label]));
+  });
+  main.appendChild(chipRow);
+
+  const hadConversation = ['spoke-owner','spoke-tenant','interested','callback'].includes(p.outcome);
+  if(hadConversation){
+    main.appendChild(el('div',{class:'section-label'},['Interest level']));
+    main.appendChild(singleChipRow(p, 'interest', [
+      ['selling','Selling'],['buying','Buying'],['curious','Curious'],
+      ['investor','Investor'],['not-interested','Not interested']
+    ]));
+
+    main.appendChild(el('div',{class:'section-label'},['Timeframe']));
+    main.appendChild(singleChipRow(p, 'timeframe', [
+      ['now','Immediately'],['3m','3 months'],['6m','6 months'],['12m','12 months'],['unknown','Unknown']
+    ]));
+
+    main.appendChild(el('div',{class:'section-label'},['Requested']));
+    main.appendChild(multiChipRow(p, 'requested', [
+      ['market-update','Market update'],['appraisal','Appraisal'],['cma','CMA'],
+      ['call','Phone call'],['email','Email'],['visit','Follow-up visit']
+    ]));
+
+    main.appendChild(el('div',{class:'section-label'},['Next action']));
+    main.appendChild(singleChipRow(p, 'nextAction', [
+      ['tomorrow','Call tomorrow'],['next-week','Call next week'],['30-days','Call in 30 days'],
+      ['cma','Prepare CMA'],['appraisal','Book appraisal'],['newsletter','Add to newsletter'],
+      ['none','No further action']
+    ]));
+  }
+
+  main.appendChild(el('div',{class:'section-label'},['Contact']));
+  main.appendChild(field('Name', p.contactName, 'text', v=>{p.contactName=v;}));
+  main.appendChild(field('Phone', p.contactPhone, 'tel', v=>{p.contactPhone=v;}));
+  main.appendChild(field('Email', p.contactEmail, 'email', v=>{p.contactEmail=v;}));
+
+  if(p.outcome==='interested' || p.outcome==='callback'){
+    main.appendChild(el('div',{class:'section-label'},['Follow-up']));
+    main.appendChild(field('Follow-up date', p.followUp, 'date', v=>{p.followUp=v;}));
+  }
+
+  main.appendChild(el('div',{class:'section-label'},['Notes']));
+  const ta = el('textarea',{oninput:(e)=>{p.notes=e.target.value; saveState();}},[]);
+  ta.value = p.notes||'';
+  const notesLabel = el('label',{class:'field'},[ta]);
+  main.appendChild(notesLabel);
+
+  screen.appendChild(main);
+
+  const footer = el('footer');
+  footer.appendChild(el('button',{class:'btn ghost',onclick:()=>{
+    if(confirm('Remove this property from the list?')){
+      state.properties = state.properties.filter(x=>x.id!==p.id);
+      saveState(); openId=null; render();
+    }
+  }},['Delete']));
+  footer.appendChild(el('button',{class:'btn primary',onclick:()=>{
+    p.timestamp = new Date().toISOString();
+    saveState();
+    const list = visibleProperties();
+    const idx = list.findIndex(x=>x.id===p.id);
+    const next = list.slice(idx+1).find(x=>!x.outcome);
+    openId = next ? next.id : null;
+    toast('Saved');
+    render();
+  }},[ (function(){
+      const list = visibleProperties();
+      const idx = list.findIndex(x=>x.id===p.id);
+      const hasNext = list.slice(idx+1).some(x=>!x.outcome);
+      return hasNext ? 'Save & Next \u2192' : 'Save';
+    })() ]));
+  screen.appendChild(footer);
+  return screen;
+}
+
+function singleChipRow(p, key, options){
+  const row = el('div',{class:'chip-row'});
+  options.forEach(([val,label])=>{
+    row.appendChild(el('div',{class:'chip'+(p[key]===val?' on good':''),
+      onclick:()=>{p[key] = p[key]===val ? '' : val; saveState(); render();}},[label]));
+  });
+  return row;
+}
+function multiChipRow(p, key, options){
+  if(!Array.isArray(p[key])) p[key] = [];
+  const row = el('div',{class:'chip-row'});
+  options.forEach(([val,label])=>{
+    const active = p[key].includes(val);
+    row.appendChild(el('div',{class:'chip'+(active?' on good':''),
+      onclick:()=>{
+        if(active) p[key] = p[key].filter(x=>x!==val);
+        else p[key] = [...p[key], val];
+        saveState(); render();
+      }},[label]));
+  });
+  return row;
+}
+function field(label, value, type, onChange){
+  const input = el('input',{type: type,
+    oninput:(e)=>{ onChange(e.target.value); saveState(); }});
+  input.value = value||'';
+  if(type==='tel') input.setAttribute('inputmode','tel');
+  return el('label',{class:'field'},[el('span',{},[label]), input]);
+}
+
+function renderSummary(){
+  const wrap = el('div');
+  const header = el('header',{class:'top'});
+  const titleRow = el('div',{style:'display:flex;align-items:center;justify-content:space-between;gap:8px;'});
+  titleRow.appendChild(el('h1',{class:'serif',style:'margin:0;'},['Nurture export']));
+  titleRow.appendChild(el('button',{style:'background:none;border:1.5px solid var(--border);border-radius:99px;padding:6px 12px;font-size:.78rem;font-weight:700;color:var(--accent);flex:none;',
+    onclick:()=>{streetPicker=true;render();}},['Streets \u25be']));
+  header.appendChild(titleRow);
+  header.appendChild(el('div',{class:'sub'},[(currentBatch()&&currentBatch().label || 'No street selected') + ' \u2014 for keying into Nurture Cloud']));
+  wrap.appendChild(header);
+
+  const main = el('main');
+  const done = visibleProperties().filter(p=>p.outcome);
+  const contacts = done.filter(p=>p.contactName||p.contactPhone||p.contactEmail);
+
+  const stats = el('div',{class:'stat-row'});
+  stats.appendChild(statBox(done.length, 'Doors knocked'));
+  stats.appendChild(statBox(contacts.length, 'Contacts captured'));
+  stats.appendChild(statBox(hotCount(), 'Hot leads'));
+  main.appendChild(stats);
+
+  if(done.length){
+    const tb = el('div',{class:'toolbar'});
+    tb.appendChild(el('button',{onclick: copyAllForNurture},['Copy all for Nurture Cloud']));
+    tb.appendChild(el('button',{onclick: downloadCSV},['Download CSV backup']));
+    main.appendChild(tb);
+  }
+
+  main.appendChild(el('div',{class:'section-label'},['Transfer between devices']));
+  main.appendChild(el('div',{class:'meta',style:'margin-bottom:10px;color:var(--ink-soft);font-size:.85rem;'},
+    ['Export backup takes every street, not just this one \u2014 use it to move your whole app to another device. AirDrop / email the file, then import it there. Nothing syncs automatically.']));
+  const transferTb = el('div',{class:'toolbar'});
+  transferTb.appendChild(el('button',{onclick: exportBackup},['Export backup (.json)']));
+  const importFileInput = el('input',{type:'file',accept:'.json,application/json',style:'display:none',
+    onchange:(e)=>{
+      const f = e.target.files[0]; if(!f) return;
+      const reader = new FileReader();
+      reader.onload = (ev)=>{
+        try{
+          const data = JSON.parse(ev.target.result);
+          importBackup(data);
+        }catch(err){ toast('Couldn\u2019t read that backup file'); }
+      };
+      reader.readAsText(f);
+    }});
+  const importBtn = el('button',{onclick:()=>importFileInput.click()},['Import backup (.json)']);
+  transferTb.appendChild(importBtn);
+  transferTb.appendChild(importFileInput);
+  main.appendChild(transferTb);
+
+  if(done.length===0){
+    main.appendChild(el('div',{class:'empty'},['Nothing captured yet. Head to Doors and get knocking.']));
+  } else {
+    done.slice().reverse().forEach(p=>{
+      const e = el('div',{class:'entry'});
+      e.appendChild(el('div',{class:'addr'},[p.address]));
+      if(p.contactName) e.appendChild(rowLine('Contact', p.contactName));
+      if(p.contactPhone) e.appendChild(rowLine('Phone', p.contactPhone));
+      if(p.contactEmail) e.appendChild(rowLine('Email', p.contactEmail));
+      e.appendChild(rowLine('Status', (p.occupancy? (p.occupancy==='owner'?'Owner-occupied':p.occupancy==='tenant'?'Tenanted':'Unsure') : '\u2014') + ' \u00b7 ' + (p.outcome||'').replace('-',' ')));
+      if(p.interest) e.appendChild(rowLine('Interest', INTEREST_LABELS[p.interest]||p.interest));
+      if(p.timeframe) e.appendChild(rowLine('Timeframe', TIMEFRAME_LABELS[p.timeframe]||p.timeframe));
+      if(p.requested && p.requested.length) e.appendChild(rowLine('Requested', p.requested.map(r=>REQUESTED_LABELS[r]||r).join(', ')));
+      if(p.nextAction) e.appendChild(rowLine('Next action', NEXT_ACTION_LABELS[p.nextAction]||p.nextAction));
+      if(p.followUp) e.appendChild(rowLine('Follow up', p.followUp));
+      if(p.notes) e.appendChild(rowLine('Notes', p.notes));
+      const actions = el('div',{class:'actions'});
+      actions.appendChild(el('button',{onclick:()=>copyOneForNurture(p)},['Copy']));
+      actions.appendChild(el('button',{onclick:()=>{openId=p.id; view='list'; render();}},['Edit']));
+      e.appendChild(actions);
+      main.appendChild(e);
+    });
+  }
+  wrap.appendChild(main);
+  wrap.appendChild(renderTabs());
+  return wrap;
+}
+function statBox(num,label){ return el('div',{class:'stat'},[el('div',{class:'num serif'},[String(num)]), el('div',{class:'lbl'},[label])]); }
+function rowLine(label,val){ return el('div',{class:'row'},[el('b',{},[label+': ']), val]); }
+
+const INTEREST_LABELS = {selling:'Selling',buying:'Buying',curious:'Curious',investor:'Investor','not-interested':'Not interested'};
+const TIMEFRAME_LABELS = {now:'Immediately','3m':'3 months','6m':'6 months','12m':'12 months',unknown:'Unknown'};
+const REQUESTED_LABELS = {'market-update':'Market update',appraisal:'Appraisal',cma:'CMA',call:'Phone call',email:'Email',visit:'Follow-up visit'};
+const NEXT_ACTION_LABELS = {tomorrow:'Call tomorrow','next-week':'Call next week','30-days':'Call in 30 days',cma:'Prepare CMA',appraisal:'Book appraisal',newsletter:'Add to newsletter',none:'No further action'};
+
+function formatForNurture(p){
+  const lines = [];
+  lines.push(p.address);
+  if(p.contactName) lines.push('Contact: '+p.contactName);
+  if(p.contactPhone) lines.push('Phone: '+p.contactPhone);
+  if(p.contactEmail) lines.push('Email: '+p.contactEmail);
+  lines.push('Occupancy: '+(p.occupancy==='owner'?'Owner-occupied':p.occupancy==='tenant'?'Tenanted':'Unsure'));
+  if(p.outcome) lines.push('Outcome: '+p.outcome.replace('-',' '));
+  if(p.interest) lines.push('Interest: '+(INTEREST_LABELS[p.interest]||p.interest));
+  if(p.timeframe) lines.push('Timeframe: '+(TIMEFRAME_LABELS[p.timeframe]||p.timeframe));
+  if(p.requested && p.requested.length) lines.push('Requested: '+p.requested.map(r=>REQUESTED_LABELS[r]||r).join(', '));
+  if(p.nextAction) lines.push('Next action: '+(NEXT_ACTION_LABELS[p.nextAction]||p.nextAction));
+  if(p.followUp) lines.push('Follow up: '+p.followUp);
+  if(p.notes) lines.push('Notes: '+p.notes);
+  return lines.join('\n');
+}
+function copyOneForNurture(p){
+  navigator.clipboard.writeText(formatForNurture(p)).then(()=>toast('Copied \u2014 paste into Nurture Cloud'));
+}
+function copyAllForNurture(){
+  const done = visibleProperties().filter(x=>x.outcome);
+  const text = done.map(formatForNurture).join('\n\n---\n\n');
+  navigator.clipboard.writeText(text).then(()=>toast('Copied all entries'));
+}
+function exportBackup(){
+  const data = { batches: state.batches, properties: state.properties, activeBatchId: state.activeBatchId, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'door-knock-backup-'+(new Date().toISOString().slice(0,10))+'.json';
+  a.click();
+  toast('Backup exported (all streets)');
+}
+function importBackup(data){
+  if(!data || !Array.isArray(data.properties)){ toast('Not a valid backup file'); return; }
+  let batchesAdded=0;
+  (data.batches||[]).forEach(b=>{
+    if(!state.batches.find(x=>x.id===b.id)){ state.batches.push(b); batchesAdded++; }
+  });
+  let added=0, updated=0;
+  data.properties.forEach(p=>{
+    if(!p.id || !p.address) return;
+    const idx = state.properties.findIndex(x=>x.id===p.id);
+    if(idx>=0){ state.properties[idx] = p; updated++; }
+    else { state.properties.push(p); added++; }
+  });
+  if(!state.activeBatchId && data.activeBatchId) state.activeBatchId = data.activeBatchId;
+  if(!state.activeBatchId && state.batches.length) state.activeBatchId = state.batches[0].id;
+  saveState();
+  toast(`Imported: ${batchesAdded} street(s), ${added} new + ${updated} updated properties`);
+  view='list'; openId=null; render();
+}
+function downloadCSV(){
+  const cols = ['address','occupancy','outcome','interest','timeframe','requested','nextAction','contactName','contactPhone','contactEmail','followUp','notes','timestamp'];
+  const rows = [cols.join(',')];
+  visibleProperties().filter(p=>p.outcome).forEach(p=>{
+    rows.push(cols.map(c=>{
+      let raw = p[c];
+      if(c==='requested') raw = (raw||[]).join('; ');
+      const v = (raw||'').toString().replace(/"/g,'""');
+      return /[,"\n]/.test(v) ? '"'+v+'"' : v;
+    }).join(','));
+  });
+  const blob = new Blob([rows.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const streetSlug = ((currentBatch()&&currentBatch().label)||'street').toLowerCase().replace(/[^a-z0-9]+/g,'-');
+  a.download = 'door-knock-'+streetSlug+'-'+(new Date().toISOString().slice(0,10))+'.csv';
+  a.click();
+}
+
+/* ---------- import ---------- */
+let importFileName = '';
+function renderImportModal(){
+  const bg = el('div',{class:'modal-bg',onclick:(e)=>{ if(e.target===bg){importStep=null;importRows=null;render();} }});
+  const modal = el('div',{class:'modal'});
+  if(importStep==='pick'){
+    modal.appendChild(el('h3',{},['Import a street']));
+    modal.appendChild(el('p',{},['Upload the CSV for one street \u2014 this starts a new street, separate from any you\u2019ve already knocked.']));
+    const pick = el('div',{class:'filepick'},['Tap to choose a CSV file']);
+    const fileInput = el('input',{type:'file',accept:'.csv,text/csv',style:'display:none',
+      onchange:(e)=>{
+        const f = e.target.files[0]; if(!f) return;
+        importFileName = f.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ');
+        const reader = new FileReader();
+        reader.onload = (ev)=>{
+          const rows = parseCSV(ev.target.result);
+          if(rows.length<2){ toast('Couldn\u2019t read that file'); return; }
+          importHeaders = rows[0]; importRows = rows.slice(1);
+          importStep = 'map'; render();
+        };
+        reader.readAsText(f);
+      }});
+    pick.onclick = ()=>fileInput.click();
+    modal.appendChild(pick); modal.appendChild(fileInput);
+    modal.appendChild(el('button',{class:'btn primary',onclick:()=>{
+      const addr = prompt('Address:');
+      if(addr){
+        if(!state.activeBatchId) createBatch('Manual entries');
+        state.properties.push(newProperty(addr));
+        saveState();
+      }
+      importStep=null; render();
+    }},['Add one address manually']));
+    modal.appendChild(el('button',{class:'btn ghost',style:'margin-top:8px',onclick:()=>{importStep=null;render();}},['Cancel']));
+  } else if(importStep==='map'){
+    modal.appendChild(el('h3',{},['Name this street']));
+    modal.appendChild(el('p',{},[`${importRows.length} rows found. This becomes its own street \u2014 it won\u2019t mix with streets you\u2019ve already imported.`]));
+    const labelInput = el('input',{id:'streetLabel',type:'text',value:importFileName||'New street'});
+    modal.appendChild(el('label',{class:'field'},[el('span',{},['Street name']), labelInput]));
+
+    const guessIdx = importHeaders.findIndex(h=>/address/i.test(h));
+    const addrSel = el('select',{id:'addrSel'});
+    if(guessIdx<0) addrSel.appendChild(el('option',{value:''},['Select address column\u2026']));
+    importHeaders.forEach((h,i)=>{
+      const opt = el('option',{value:i},[h]);
+      if(i===guessIdx) opt.setAttribute('selected','selected');
+      addrSel.appendChild(opt);
+    });
+    modal.appendChild(el('label',{class:'field'},[el('span',{},['Address column']), addrSel]));
+    modal.appendChild(el('button',{class:'btn primary',onclick:()=>{
+      const ai = addrSel.value;
+      if(ai===''){ toast('Pick the address column'); return; }
+      const batch = createBatch(labelInput.value.trim() || 'Untitled street');
+      let added=0;
+      importRows.forEach(r=>{
+        const address = (r[ai]||'').trim();
+        if(!address) return;
+        const ref = {};
+        importHeaders.forEach((h,i)=>{
+          if(String(i)===String(ai)) return;
+          const v = (r[i]||'').trim();
+          if(v) ref[h] = fmtVal(v);
+        });
+        state.properties.push(newProperty(address, ref, batch.id));
+        added++;
+      });
+      saveState();
+      toast(added+' addresses added to '+batch.label);
+      importStep=null; importRows=null; view='list'; render();
+    }},['Import '+importRows.length+' properties']));
+    modal.appendChild(el('button',{class:'btn ghost',style:'margin-top:8px',onclick:()=>{importStep=null;importRows=null;render();}},['Cancel']));
+  }
+  bg.appendChild(modal);
+  return bg;
+}
+
+function renderStreetPicker(){
+  const bg = el('div',{class:'modal-bg',onclick:(e)=>{ if(e.target===bg){streetPicker=false;render();} }});
+  const modal = el('div',{class:'modal'});
+  modal.appendChild(el('h3',{},['Streets']));
+  modal.appendChild(el('p',{},['Switch which street you\u2019re working, or start a new one. Old streets are kept, not deleted.']));
+  if(state.batches.length===0){
+    modal.appendChild(el('div',{class:'empty',style:'padding:20px 0;'},['No streets yet.']));
+  }
+  state.batches.slice().reverse().forEach(b=>{
+    const count = state.properties.filter(p=>p.batchId===b.id).length;
+    const done = state.properties.filter(p=>p.batchId===b.id && p.outcome).length;
+    const row = el('div',{class:'card',style: b.id===state.activeBatchId ? 'border-color:var(--accent);' : '',
+      onclick:()=>{ state.activeBatchId=b.id; saveState(); streetPicker=false; view='list'; render(); }});
+    const info = el('div',{class:'info'});
+    info.appendChild(el('div',{class:'addr'},[b.label + (b.id===state.activeBatchId?' (current)':'')]));
+    info.appendChild(el('div',{class:'meta'},[`${done} / ${count} doors \u00b7 ${new Date(b.createdAt).toLocaleDateString()}`]));
+    row.appendChild(info);
+    const delBtn = el('button',{style:'background:none;border:none;color:var(--bad);font-size:.85rem;font-weight:700;flex:none;padding:6px;',
+      onclick:(e)=>{
+        e.stopPropagation();
+        if(confirm(`Delete "${b.label}" and its ${count} propert${count===1?'y':'ies'}? This can\u2019t be undone \u2014 export first if you need a record.`)){
+          state.properties = state.properties.filter(p=>p.batchId!==b.id);
+          state.batches = state.batches.filter(x=>x.id!==b.id);
+          if(state.activeBatchId===b.id) state.activeBatchId = state.batches.length ? state.batches[state.batches.length-1].id : null;
+          saveState(); render();
+        }
+      }},['Delete']);
+    row.appendChild(delBtn);
+    modal.appendChild(row);
+  });
+  modal.appendChild(el('button',{class:'btn primary',style:'margin-top:8px',
+    onclick:()=>{ streetPicker=false; importStep='pick'; render(); }},['+ Import a new street']));
+  modal.appendChild(el('button',{class:'btn ghost',style:'margin-top:8px',onclick:()=>{streetPicker=false;render();}},['Close']));
+  bg.appendChild(modal);
+  return bg;
+}
+
+render();
+</script>
+</body>
+</html>

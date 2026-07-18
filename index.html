@@ -199,14 +199,7 @@ function loadState(){
   }catch(e){}
   return { properties: [], batches: [], activeBatchId: null };
 }
-function saveState(){
-  try{
-    localStorage.setItem(STORE_KEY, JSON.stringify(state));
-  }catch(e){
-    alert('Couldn\u2019t save your data. This usually means Safari is blocking storage \u2014 check Settings > Privacy > \u201cBlock all cookies\u201d is off, and that you\u2019re not in Private Browsing. Your changes will be lost if you reload before fixing this.');
-    console.error('saveState failed', e);
-  }
-}
+function saveState(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 
 let state = loadState();
 let view = 'list';       // list | summary
@@ -221,7 +214,7 @@ let streetPicker = false;
 function uid(){ return 'p' + Math.random().toString(36).slice(2,10); }
 function newProperty(address, ref, batchId){
   return {
-    id:uid(), address, ref: ref||{}, batchId: batchId || state.activeBatchId,
+    id:uid(), address, ref: ref||{}, ownerOnRecord:'', batchId: batchId || state.activeBatchId,
     occupancy:'', outcome:'', interest:'', timeframe:'', requested:[], nextAction:'',
     contactName:'', contactPhone:'', contactEmail:'', notes:'', followUp:''
   };
@@ -341,7 +334,8 @@ function renderList(){
       if(p.occupancy==='owner') metaParts.push('Owner-occ');
       if(p.occupancy==='tenant') metaParts.push('Tenanted');
       if(p.contactName) metaParts.push(p.contactName);
-      if(!p.contactName && p.ref){
+      if(!p.contactName && p.ownerOnRecord) metaParts.push('Owner: '+p.ownerOnRecord);
+      if(!p.contactName && !p.ownerOnRecord && p.ref){
         const avmKey = Object.keys(p.ref).find(k=>/avm/i.test(k));
         if(avmKey) metaParts.push('Est. '+p.ref[avmKey]);
       }
@@ -374,6 +368,7 @@ function renderDetail(p){
   const header = el('header');
   header.appendChild(el('button',{class:'backbtn',onclick:()=>{openId=null;render();}},['\u2039 Back']));
   header.appendChild(el('h2',{class:'serif'},[p.address]));
+  if(p.ownerOnRecord) header.appendChild(el('div',{class:'ref'},['Owner on record: '+p.ownerOnRecord]));
   screen.appendChild(header);
 
   const main = el('main');
@@ -441,6 +436,11 @@ function renderDetail(p){
 
   main.appendChild(el('div',{class:'section-label'},['Contact']));
   main.appendChild(field('Name', p.contactName, 'text', v=>{p.contactName=v;}));
+  if(p.ownerOnRecord && p.ownerOnRecord!==p.contactName){
+    main.appendChild(el('button',{style:'margin:-8px 0 12px;background:none;border:none;color:var(--accent);font-size:.82rem;font-weight:600;padding:0;',
+      onclick:()=>{ p.contactName = p.ownerOnRecord; saveState(); render(); }},
+      ['Use \u201c'+p.ownerOnRecord+'\u201d as contact name']));
+  }
   main.appendChild(field('Phone', p.contactPhone, 'tel', v=>{p.contactPhone=v;}));
   main.appendChild(field('Email', p.contactEmail, 'email', v=>{p.contactEmail=v;}));
 
@@ -719,30 +719,29 @@ function renderImportModal(){
     });
     modal.appendChild(el('label',{class:'field'},[el('span',{},['Address column']), addrSel]));
     modal.appendChild(el('button',{class:'btn primary',onclick:()=>{
-      try{
-        const ai = addrSel.value;
-        if(ai===''){ toast('Pick the address column'); return; }
-        const batch = createBatch(labelInput.value.trim() || 'Untitled street');
-        let added=0;
-        importRows.forEach(r=>{
-          const address = (r[ai]||'').trim();
-          if(!address) return;
-          const ref = {};
-          importHeaders.forEach((h,i)=>{
-            if(String(i)===String(ai)) return;
-            const v = (r[i]||'').trim();
-            if(v) ref[h] = fmtVal(v);
-          });
-          state.properties.push(newProperty(address, ref, batch.id));
-          added++;
+      const ai = addrSel.value;
+      if(ai===''){ toast('Pick the address column'); return; }
+      const batch = createBatch(labelInput.value.trim() || 'Untitled street');
+      let added=0;
+      importRows.forEach(r=>{
+        const address = (r[ai]||'').trim();
+        if(!address) return;
+        const ref = {}; let ownerOnRecord = '';
+        importHeaders.forEach((h,i)=>{
+          if(String(i)===String(ai)) return;
+          const v = (r[i]||'').trim();
+          if(!v) return;
+          if(/owner/i.test(h) && !/occup/i.test(h) && !ownerOnRecord) ownerOnRecord = v;
+          else ref[h] = fmtVal(v);
         });
-        saveState();
-        toast(added+' addresses added to '+batch.label);
-        importStep=null; importRows=null; view='list'; render();
-      }catch(err){
-        alert('Import failed: '+err.message);
-        console.error(err);
-      }
+        const p = newProperty(address, ref, batch.id);
+        p.ownerOnRecord = ownerOnRecord;
+        state.properties.push(p);
+        added++;
+      });
+      saveState();
+      toast(added+' addresses added to '+batch.label);
+      importStep=null; importRows=null; view='list'; render();
     }},['Import '+importRows.length+' properties']));
     modal.appendChild(el('button',{class:'btn ghost',style:'margin-top:8px',onclick:()=>{importStep=null;importRows=null;render();}},['Cancel']));
   }

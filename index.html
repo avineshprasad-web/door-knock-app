@@ -228,6 +228,27 @@ function createBatch(label){
 }
 function currentBatch(){ return state.batches.find(b=>b.id===state.activeBatchId); }
 function visibleProperties(){ return state.properties.filter(p=>p.batchId===state.activeBatchId); }
+function streetNum(address){
+  if(!address) return null;
+  const unit = address.match(/^\d+\/(\d+)/);   // "3/12 Main St" -> 12 (unit 3 of number 12)
+  if(unit) return parseInt(unit[1],10);
+  const m = address.match(/^(\d+)/);
+  return m ? parseInt(m[1],10) : null;
+}
+let sideFilter = 'all'; // all | odd | even
+function workingList(){
+  let list = visibleProperties().slice();
+  list.sort((a,b)=>{
+    const na = streetNum(a.address), nb = streetNum(b.address);
+    if(na===null && nb===null) return 0;
+    if(na===null) return 1;
+    if(nb===null) return -1;
+    return na - nb;
+  });
+  if(sideFilter==='odd') list = list.filter(p=>{ const n=streetNum(p.address); return n!==null && n%2===1; });
+  else if(sideFilter==='even') list = list.filter(p=>{ const n=streetNum(p.address); return n!==null && n%2===0; });
+  return list;
+}
 function fmtVal(v){
   v = (v||'').trim();
   if(/^\d+$/.test(v)) return Number(v).toLocaleString();
@@ -271,11 +292,23 @@ function parseCSV(text){
 /* ---------- render ---------- */
 function render(){
   const app = document.getElementById('app');
+  const active = document.activeElement;
+  let restore = null;
+  if(active && active.id && app.contains(active) && (active.tagName==='INPUT' || active.tagName==='TEXTAREA')){
+    restore = { id: active.id, start: active.selectionStart, end: active.selectionEnd };
+  }
   app.innerHTML = '';
   app.appendChild(view==='list' ? renderList() : renderSummary());
   if(openId) app.appendChild(renderDetail(state.properties.find(p=>p.id===openId)));
   if(importStep) app.appendChild(renderImportModal());
   if(streetPicker) app.appendChild(renderStreetPicker());
+  if(restore){
+    const again = document.getElementById(restore.id);
+    if(again){
+      again.focus();
+      try{ again.setSelectionRange(restore.start, restore.end); }catch(e){}
+    }
+  }
 }
 
 function el(tag, attrs, children){
@@ -298,7 +331,23 @@ function renderList(){
   titleRow.appendChild(el('button',{style:'background:none;border:1.5px solid var(--border);border-radius:99px;padding:6px 12px;font-size:.78rem;font-weight:700;color:var(--accent);flex:none;',
     onclick:()=>{streetPicker=true;render();}},['Streets \u25be']));
   header.appendChild(titleRow);
-  header.appendChild(el('div',{class:'sub'},[`${visitedCount()} / ${props.length} doors \u00b7 ${hotCount()} hot`]));
+
+  const oddCount = props.filter(p=>{const n=streetNum(p.address); return n!==null && n%2===1;});
+  const evenCount = props.filter(p=>{const n=streetNum(p.address); return n!==null && n%2===0;});
+  const oddDone = oddCount.filter(p=>p.outcome).length;
+  const evenDone = evenCount.filter(p=>p.outcome).length;
+
+  header.appendChild(el('div',{class:'sub',style:'font-weight:700;color:var(--ink);'},[`${visitedCount()} of ${props.length} doors knocked`]));
+  header.appendChild(el('div',{class:'sub'},[`${hotCount()} hot \u00b7 Odd ${oddDone}/${oddCount.length} \u00b7 Even ${evenDone}/${evenCount.length}`]));
+
+  const sideRow = el('div',{style:'display:flex;gap:6px;margin-top:8px;'});
+  [['all','All'],['odd','Odd side'],['even','Even side']].forEach(([val,label])=>{
+    sideRow.appendChild(el('button',{style:`flex:1;padding:8px 4px;border-radius:9px;border:1.5px solid var(--border);font-size:.78rem;font-weight:700;
+      background:${sideFilter===val?'var(--accent)':'var(--panel)'};color:${sideFilter===val?'#fff':'var(--ink)'};`,
+      onclick:()=>{sideFilter=val;render();}},[label]));
+  });
+  header.appendChild(sideRow);
+
   const rail = el('div',{class:'progress-rail'});
   props.forEach(p=>{
     const s = statusOf(p);
@@ -308,13 +357,13 @@ function renderList(){
   wrap.appendChild(header);
 
   const searchWrap = el('div',{class:'search'});
-  const input = el('input',{placeholder:'Search address\u2026', value: searchTerm,
+  const input = el('input',{id:'searchInput',placeholder:'Search address\u2026', value: searchTerm,
     oninput:(e)=>{ searchTerm=e.target.value; render(); }});
   searchWrap.appendChild(input);
   wrap.appendChild(searchWrap);
 
   const main = el('main');
-  const list = props.filter(p=> p.address.toLowerCase().includes(searchTerm.toLowerCase()));
+  const list = workingList().filter(p=> p.address.toLowerCase().includes(searchTerm.toLowerCase()));
   if(props.length===0){
     const empty = el('div',{class:'empty'});
     empty.appendChild(el('div',{class:'big'},['\ud83d\udeaa']));
@@ -467,14 +516,14 @@ function renderDetail(p){
   footer.appendChild(el('button',{class:'btn primary',onclick:()=>{
     p.timestamp = new Date().toISOString();
     saveState();
-    const list = visibleProperties();
+    const list = workingList();
     const idx = list.findIndex(x=>x.id===p.id);
     const next = list.slice(idx+1).find(x=>!x.outcome);
     openId = next ? next.id : null;
     toast('Saved');
     render();
   }},[ (function(){
-      const list = visibleProperties();
+      const list = workingList();
       const idx = list.findIndex(x=>x.id===p.id);
       const hasNext = list.slice(idx+1).some(x=>!x.outcome);
       return hasNext ? 'Save & Next \u2192' : 'Save';

@@ -290,6 +290,7 @@ function parseCSV(text){
 }
 
 /* ---------- render ---------- */
+let lastRenderOpenId = undefined, lastRenderView = undefined;
 function render(){
   const app = document.getElementById('app');
   const active = document.activeElement;
@@ -297,11 +298,24 @@ function render(){
   if(active && active.id && app.contains(active) && (active.tagName==='INPUT' || active.tagName==='TEXTAREA')){
     restore = { id: active.id, start: active.selectionStart, end: active.selectionEnd };
   }
+  const prevScrollSelector = lastRenderOpenId ? '.screen main' : 'main';
+  const prevScrollEl = app.querySelector(prevScrollSelector);
+  const scrollTop = prevScrollEl ? prevScrollEl.scrollTop : 0;
+
   app.innerHTML = '';
   app.appendChild(view==='list' ? renderList() : renderSummary());
   if(openId) app.appendChild(renderDetail(state.properties.find(p=>p.id===openId)));
   if(importStep) app.appendChild(renderImportModal());
   if(streetPicker) app.appendChild(renderStreetPicker());
+
+  const samePlace = (lastRenderOpenId===openId) && (lastRenderView===view);
+  if(samePlace){
+    const newScrollSelector = openId ? '.screen main' : 'main';
+    const newScrollEl = app.querySelector(newScrollSelector);
+    if(newScrollEl) newScrollEl.scrollTop = scrollTop;
+  }
+  lastRenderOpenId = openId; lastRenderView = view;
+
   if(restore){
     const again = document.getElementById(restore.id);
     if(again){

@@ -236,6 +236,7 @@ function streetNum(address){
   return m ? parseInt(m[1],10) : null;
 }
 let sideFilter = 'all'; // all | odd | even
+let sortDirection = 'asc'; // asc | desc
 function workingList(){
   let list = visibleProperties().slice();
   list.sort((a,b)=>{
@@ -243,7 +244,7 @@ function workingList(){
     if(na===null && nb===null) return 0;
     if(na===null) return 1;
     if(nb===null) return -1;
-    return na - nb;
+    return sortDirection==='asc' ? na - nb : nb - na;
   });
   if(sideFilter==='odd') list = list.filter(p=>{ const n=streetNum(p.address); return n!==null && n%2===1; });
   else if(sideFilter==='even') list = list.filter(p=>{ const n=streetNum(p.address); return n!==null && n%2===0; });
@@ -360,6 +361,10 @@ function renderList(){
       background:${sideFilter===val?'var(--accent)':'var(--panel)'};color:${sideFilter===val?'#fff':'var(--ink)'};`,
       onclick:()=>{sideFilter=val;render();}},[label]));
   });
+  sideRow.appendChild(el('button',{style:`flex:0 0 auto;padding:8px 12px;border-radius:9px;border:1.5px solid var(--border);font-size:.78rem;font-weight:700;
+    background:var(--panel);color:var(--ink);`,
+    onclick:()=>{sortDirection = sortDirection==='asc' ? 'desc' : 'asc'; render();}},
+    [sortDirection==='asc' ? '\u2191 Low\u2192High' : '\u2193 High\u2192Low']));
   header.appendChild(sideRow);
 
   const rail = el('div',{class:'progress-rail'});
@@ -372,12 +377,30 @@ function renderList(){
 
   const searchWrap = el('div',{class:'search'});
   const input = el('input',{id:'searchInput',placeholder:'Search address\u2026', value: searchTerm,
-    oninput:(e)=>{ searchTerm=e.target.value; render(); }});
+    oninput:(e)=>{
+      searchTerm = e.target.value;
+      const resultsEl = document.getElementById('resultsMain');
+      if(resultsEl){
+        const filtered = workingList().filter(p=> p.address.toLowerCase().includes(searchTerm.toLowerCase()));
+        resultsEl.innerHTML = '';
+        fillResults(resultsEl, filtered, props);
+      }
+    }});
   searchWrap.appendChild(input);
   wrap.appendChild(searchWrap);
 
-  const main = el('main');
+  const main = el('main',{id:'resultsMain'});
   const list = workingList().filter(p=> p.address.toLowerCase().includes(searchTerm.toLowerCase()));
+  fillResults(main, list, props);
+  wrap.appendChild(main);
+
+  const fab = el('button',{class:'fab',onclick:()=>{importStep='pick';render();}},['+']);
+  wrap.appendChild(fab);
+  wrap.appendChild(renderTabs());
+  return wrap;
+}
+
+function fillResults(main, list, props){
   if(props.length===0){
     const empty = el('div',{class:'empty'});
     empty.appendChild(el('div',{class:'big'},['\ud83d\udeaa']));
@@ -408,12 +431,6 @@ function renderList(){
       main.appendChild(card);
     });
   }
-  wrap.appendChild(main);
-
-  const fab = el('button',{class:'fab',onclick:()=>{importStep='pick';render();}},['+']);
-  wrap.appendChild(fab);
-  wrap.appendChild(renderTabs());
-  return wrap;
 }
 
 function renderTabs(){
